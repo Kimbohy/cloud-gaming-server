@@ -19,13 +19,17 @@
 #define RETRO_DEVICE_ID_JOYPAD_L 10
 #define RETRO_DEVICE_ID_JOYPAD_R 11
 
+// Environment commands
 #define RETRO_ENVIRONMENT_SET_PIXEL_FORMAT 10
+#define RETRO_ENVIRONMENT_GET_CAN_DUPE 14
+
+// Pixel formats  
 #define RETRO_PIXEL_FORMAT_RGB565 2
 #define RETRO_PIXEL_FORMAT_XRGB8888 1
 
 typedef void (*retro_init_t)(void);
 typedef void (*retro_deinit_t)(void);
-typedef void (*retro_set_environment_t)(void (*)(unsigned, void*));
+typedef void (*retro_set_environment_t)(bool (*)(unsigned, void*));
 typedef void (*retro_set_video_refresh_t)(void (*)(const void*, unsigned, unsigned, size_t));
 typedef void (*retro_set_audio_sample_t)(void (*)(int16_t, int16_t));
 typedef void (*retro_set_audio_sample_batch_t)(size_t (*)(const int16_t*, size_t));
@@ -162,10 +166,21 @@ public:
     void SetInput(unsigned button, bool pressed) {
         if (button < 16) {
             input_states[button] = pressed;
+            std::cout << "[LibretroCore::SetInput] Button " << button << " = " << (pressed ? "PRESSED" : "RELEASED") << std::endl;
+            std::cout << "[LibretroCore::SetInput] Current state array: ";
+            for (int i = 0; i < 16; i++) {
+                if (input_states[i]) std::cout << i << " ";
+            }
+            std::cout << std::endl;
         }
     }
 
     const std::vector<uint8_t>& GetFrameBuffer() const {
+        return frame_buffer;
+    }
+
+    // Thread-safe copy of frame buffer
+    std::vector<uint8_t> GetFrameBufferCopy() const {
         return frame_buffer;
     }
 
@@ -181,11 +196,20 @@ public:
     unsigned GetFrameHeight() const { return frame_height; }
 
 private:
-    static void EnvironmentCallback(unsigned cmd, void* data) {
+    static bool EnvironmentCallback(unsigned cmd, void* data) {
         if (cmd == RETRO_ENVIRONMENT_SET_PIXEL_FORMAT) {
             unsigned* format = (unsigned*)data;
             *format = RETRO_PIXEL_FORMAT_XRGB8888;
+            return true;
         }
+        
+        if (cmd == RETRO_ENVIRONMENT_GET_CAN_DUPE) {
+            bool* can_dupe = (bool*)data;
+            *can_dupe = true;
+            return true;
+        }
+        
+        return false;
     }
 
     static void VideoRefreshCallback(const void* data, unsigned width, unsigned height, size_t pitch) {
@@ -199,17 +223,19 @@ private:
         size_t buffer_size = width * height * 4;
         instance->frame_buffer.resize(buffer_size);
 
-        const uint32_t* src = (const uint32_t*)data;
+        const uint8_t* src = (const uint8_t*)data;
         uint8_t* dst = instance->frame_buffer.data();
 
+        // mGBA outputs XRGB8888, which in memory on little-endian is: [B][G][R][X]
+        // We need RGBA format: [R][G][B][A]
         for (unsigned y = 0; y < height; y++) {
             for (unsigned x = 0; x < width; x++) {
-                uint32_t pixel = src[y * (pitch / 4) + x];
-                size_t idx = (y * width + x) * 4;
-                dst[idx + 0] = (pixel >> 16) & 0xFF; // R
-                dst[idx + 1] = (pixel >> 8) & 0xFF;  // G
-                dst[idx + 2] = pixel & 0xFF;         // B
-                dst[idx + 3] = 255;                   // A
+                size_t src_idx = y * pitch + x * 4;
+                size_t dst_idx = (y * width + x) * 4;
+                dst[dst_idx + 0] = src[src_idx + 2]; // R from src[2]
+                dst[dst_idx + 1] = src[src_idx + 1]; // G from src[1]
+                dst[dst_idx + 2] = src[src_idx + 0]; // B from src[0]
+                dst[dst_idx + 3] = 255;               // A
             }
         }
     }
@@ -228,12 +254,25 @@ private:
 
     static void InputPollCallback(void) {
         // Input polling handled externally
+        // This is called by the core every frame to poll inputs
+        static int poll_count = 0;
+        poll_count++;
+        if (poll_count % 60 == 0) {
+            std::cout << "[InputPollCallback] Called " << poll_count << " times" << std::endl;
+        }
     }
 
     static int16_t InputStateCallback(unsigned port, unsigned device, unsigned index, unsigned id) {
-        if (!instance || port != 0 || device != RETRO_DEVICE_JOYPAD) return 0;
+        if (!instance) return 0;
+        if (port != 0 || device != RETRO_DEVICE_JOYPAD) return 0;
         if (id >= 16) return 0;
-        return instance->input_states[id] ? 1 : 0;
+        
+        bool pressed = instance->input_states[id];
+        // Log only when button is pressed to avoid spam
+        if (pressed) {
+            std::cout << "[InputStateCallback] Button " << id << " is pressed" << std::endl;
+        }
+        return pressed ? 1 : 0;
     }
 };
 
@@ -321,7 +360,8 @@ Napi::Value LibretroAddon::RunFrame(const Napi::CallbackInfo& info) {
 
 Napi::Value LibretroAddon::GetFrameBuffer(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    const auto& buffer = core.GetFrameBuffer();
+    // Make a copy to avoid race condition with VideoRefreshCallback
+    auto buffer = core.GetFrameBufferCopy();
     
     if (buffer.empty()) {
         return env.Null();

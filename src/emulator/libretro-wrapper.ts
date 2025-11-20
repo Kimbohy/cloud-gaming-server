@@ -128,8 +128,14 @@ export class LibretroCore {
 
   setInput(button: string, pressed: boolean): void {
     const buttonId = BUTTON_MAP[button.toUpperCase()];
+    console.log(
+      `[LibretroCore] setInput: button=${button}, buttonId=${buttonId}, pressed=${pressed}`,
+    );
     if (buttonId !== undefined) {
       this.core.setInput(buttonId, pressed);
+      console.log(`[LibretroCore] Input sent to native addon`);
+    } else {
+      console.warn(`[LibretroCore] Unknown button: ${button}`);
     }
   }
 

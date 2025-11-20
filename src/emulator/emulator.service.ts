@@ -238,16 +238,32 @@ export class EmulatorService {
 
   sendInput(sessionId: string, input: any): void {
     const session = this.sessions.get(sessionId);
-    if (!session || session.status !== 'running') {
-      this.logger.warn(`Cannot send input to session ${sessionId}`);
+    this.logger.log(
+      `[sendInput] sessionId=${sessionId}, exists=${!!session}, status=${session?.status}, hasCore=${!!session?.core}`,
+    );
+
+    if (!session) {
+      this.logger.warn(`Cannot send input - session ${sessionId} not found`);
+      this.logger.log(
+        `Available sessions: ${Array.from(this.sessions.keys()).join(', ')}`,
+      );
+      return;
+    }
+
+    if (session.status !== 'running') {
+      this.logger.warn(
+        `Cannot send input - session ${sessionId} status is ${session.status}`,
+      );
       return;
     }
 
     if (session.core) {
       // Send input to native libretro core
       const { button, state } = input;
+      this.logger.log(
+        `Sending input to core: button=${button}, state=${state}`,
+      );
       session.core.setInput(button, state === 'down');
-      this.logger.debug(`Input sent to core: ${button} ${state}`);
     } else {
       this.logger.debug(`Mock input for session ${sessionId}:`, input);
     }
