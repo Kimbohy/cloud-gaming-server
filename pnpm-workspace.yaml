@@ -1,0 +1,3 @@
+ignoredBuiltDependencies:
+  - ffi-napi
+  - ref-napi
