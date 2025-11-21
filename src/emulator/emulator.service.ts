@@ -33,20 +33,24 @@ export class EmulatorService {
   async createSession(romPath: string): Promise<GameSession> {
     const sessionId = this.generateSessionId();
 
+    // Resolve ROM path relative to project root's rom directory
+    const projectRoot = path.resolve(__dirname, '../../..');
+    const fullRomPath = path.join(projectRoot, 'rom', romPath);
+
     // Verify ROM exists
-    if (!fs.existsSync(romPath)) {
-      throw new Error(`ROM not found: ${romPath}`);
+    if (!fs.existsSync(fullRomPath)) {
+      throw new Error(`ROM not found: ${fullRomPath}`);
     }
 
     const session: GameSession = {
       id: sessionId,
-      romPath,
+      romPath: fullRomPath,
       status: 'created',
       useNativeCore: true, // Use native libretro core by default
     };
 
     this.sessions.set(sessionId, session);
-    this.logger.log(`Created session ${sessionId} for ROM: ${romPath}`);
+    this.logger.log(`Created session ${sessionId} for ROM: ${fullRomPath}`);
 
     return session;
   }
@@ -127,7 +131,7 @@ export class EmulatorService {
     const session = this.sessions.get(sessionId);
     if (!session || !session.core) return;
 
-    // Run emulator at 60fps and capture frames
+    // Run emulator at 60fps and capture frames + audio
     let frameCount = 0;
     session.frameInterval = setInterval(async () => {
       if (session.status === 'running' && session.core) {
@@ -142,11 +146,26 @@ export class EmulatorService {
           if (frame && this.gatewayCallback) {
             this.gatewayCallback(sessionId, frame);
             frameCount++;
-            // if (frameCount % 60 === 0) {
-            //   this.logger.debug(
-            //     `Emulated ${frameCount} frames for session ${sessionId}`,
-            //   );
-            // }
+          }
+
+          // Get and emit audio buffer
+          const audioBuffer = session.core.getAudioBuffer();
+          if (audioBuffer && audioBuffer.length > 0) {
+            const audioData = {
+              data: audioBuffer.toString('base64'),
+              sampleRate: 32040, // mGBA default sample rate
+              channels: 2, // Stereo
+              format: 'pcm_s16le', // Signed 16-bit little-endian
+              timestamp: Date.now(),
+            };
+
+            if (this.gatewayCallback) {
+              // Use a separate callback for audio or extend the gateway
+              this.emitAudio(sessionId, audioData);
+            }
+
+            // Clear the audio buffer after reading
+            session.core.clearAudioBuffer();
           }
         } catch (error) {
           this.logger.error(
@@ -156,6 +175,21 @@ export class EmulatorService {
         }
       }
     }, 1000 / 60); // 60 FPS
+  }
+
+  private emitAudio(sessionId: string, audioData: any): void {
+    // Emit audio through the gateway
+    if (this.audioGatewayCallback) {
+      this.audioGatewayCallback(sessionId, audioData);
+    }
+  }
+
+  private audioGatewayCallback:
+    | ((sessionId: string, audio: any) => void)
+    | null = null;
+
+  setAudioGatewayCallback(callback: (sessionId: string, audio: any) => void) {
+    this.audioGatewayCallback = callback;
   }
 
   private startFrameStreaming(sessionId: string): void {

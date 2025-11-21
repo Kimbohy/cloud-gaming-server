@@ -19,7 +19,7 @@ interface InputMessage {
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   },
 })
 export class EmulatorGateway
@@ -35,6 +35,11 @@ export class EmulatorGateway
     // Set up callback for service to push frames
     this.emulatorService.setGatewayCallback((sessionId, frame) => {
       this.broadcastFrame(sessionId, frame);
+    });
+
+    // Set up callback for service to push audio
+    this.emulatorService.setAudioGatewayCallback((sessionId, audio) => {
+      this.broadcastAudio(sessionId, audio);
     });
   }
 

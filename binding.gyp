@@ -2,9 +2,13 @@
   "targets": [
     {
       "target_name": "libretro_addon",
-      "sources": ["native/libretro_addon.cpp"],
+      "sources": [
+        "native/libretro_addon.cpp",
+        "native/libretro_core.cpp"
+      ],
       "include_dirs": [
-        "<!@(node -p \"require('node-addon-api').include\")"
+        "<!@(node -p \"require('node-addon-api').include\")",
+        "native"
       ],
       "dependencies": [
         "<!(node -p \"require('node-addon-api').gyp\")"
