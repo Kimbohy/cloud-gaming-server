@@ -199,6 +199,10 @@ export class EmulatorService {
       const width = session.core.getFrameWidth();
       const height = session.core.getFrameHeight();
 
+      console.log(
+        `[Frame encoding] width=${width}, height=${height}, bufferSize=${frameBuffer.length}, expected=${width * height * 4}`,
+      );
+
       try {
         // Encode RGBA buffer as PNG for efficient transmission
         const png = await sharp(frameBuffer, {

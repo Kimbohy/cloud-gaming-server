@@ -197,9 +197,21 @@ public:
 
 private:
     static bool EnvironmentCallback(unsigned cmd, void* data) {
+        std::cout << "[EnvironmentCallback] CMD=" << cmd << std::endl;
+        
         if (cmd == RETRO_ENVIRONMENT_SET_PIXEL_FORMAT) {
             unsigned* format = (unsigned*)data;
-            *format = RETRO_PIXEL_FORMAT_XRGB8888;
+            std::cout << "[EnvironmentCallback] Core requested pixel format: " << *format << std::endl;
+            // RETRO_PIXEL_FORMAT_0RGB1555 = 0
+            // RETRO_PIXEL_FORMAT_XRGB8888 = 1
+            // RETRO_PIXEL_FORMAT_RGB565 = 2
+            if (*format == 2) {
+                std::cout << "[EnvironmentCallback] Format is RGB565" << std::endl;
+            } else if (*format == 1) {
+                std::cout << "[EnvironmentCallback] Format is XRGB8888" << std::endl;
+            } else if (*format == 0) {
+                std::cout << "[EnvironmentCallback] Format is 0RGB1555" << std::endl;
+            }
             return true;
         }
         
@@ -219,23 +231,33 @@ private:
         instance->frame_height = height;
         instance->frame_pitch = pitch;
 
-        // Convert to RGBA format
-        size_t buffer_size = width * height * 4;
-        instance->frame_buffer.resize(buffer_size);
-
-        const uint8_t* src = (const uint8_t*)data;
+        // Allocate RGBA buffer
+        instance->frame_buffer.resize(width * height * 4);
+        
         uint8_t* dst = instance->frame_buffer.data();
 
-        // mGBA outputs XRGB8888, which in memory on little-endian is: [B][G][R][X]
-        // We need RGBA format: [R][G][B][A]
+        // Convert RGB565 to RGBA
+        // RGB565: RRRRRGGGGGGBBBBB (16 bits, 2 bytes per pixel)
         for (unsigned y = 0; y < height; y++) {
+            const uint16_t* row = (const uint16_t*)((const uint8_t*)data + y * pitch);
             for (unsigned x = 0; x < width; x++) {
-                size_t src_idx = y * pitch + x * 4;
-                size_t dst_idx = (y * width + x) * 4;
-                dst[dst_idx + 0] = src[src_idx + 2]; // R from src[2]
-                dst[dst_idx + 1] = src[src_idx + 1]; // G from src[1]
-                dst[dst_idx + 2] = src[src_idx + 0]; // B from src[0]
-                dst[dst_idx + 3] = 255;               // A
+                uint16_t pixel = row[x];
+                
+                // Extract RGB565 components
+                uint8_t r5 = (pixel >> 11) & 0x1F;  // 5 bits
+                uint8_t g6 = (pixel >> 5) & 0x3F;   // 6 bits
+                uint8_t b5 = pixel & 0x1F;          // 5 bits
+                
+                // Scale to 8-bit (expand to full range)
+                uint8_t r8 = (r5 << 3) | (r5 >> 2);
+                uint8_t g8 = (g6 << 2) | (g6 >> 4);
+                uint8_t b8 = (b5 << 3) | (b5 >> 2);
+                
+                size_t idx = (y * width + x) * 4;
+                dst[idx + 0] = r8;
+                dst[idx + 1] = g8;
+                dst[idx + 2] = b8;
+                dst[idx + 3] = 255;
             }
         }
     }
