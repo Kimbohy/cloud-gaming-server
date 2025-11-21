@@ -47,7 +47,7 @@ export class EmulatorGateway
     @MessageBody() data: InputMessage,
     @ConnectedSocket() client: Socket,
   ) {
-    this.logger.debug(`Input from ${client.id}:`, data);
+    // this.logger.debug(`Input from ${client.id}:`, data);
 
     if (data.sessionId) {
       this.emulatorService.sendInput(data.sessionId, {

@@ -142,11 +142,11 @@ export class EmulatorService {
           if (frame && this.gatewayCallback) {
             this.gatewayCallback(sessionId, frame);
             frameCount++;
-            if (frameCount % 60 === 0) {
-              this.logger.debug(
-                `Emulated ${frameCount} frames for session ${sessionId}`,
-              );
-            }
+            // if (frameCount % 60 === 0) {
+            //   this.logger.debug(
+            //     `Emulated ${frameCount} frames for session ${sessionId}`,
+            //   );
+            // }
           }
         } catch (error) {
           this.logger.error(
@@ -199,9 +199,9 @@ export class EmulatorService {
       const width = session.core.getFrameWidth();
       const height = session.core.getFrameHeight();
 
-      console.log(
-        `[Frame encoding] width=${width}, height=${height}, bufferSize=${frameBuffer.length}, expected=${width * height * 4}`,
-      );
+      // console.log(
+      //   `[Frame encoding] width=${width}, height=${height}, bufferSize=${frameBuffer.length}, expected=${width * height * 4}`,
+      // );
 
       try {
         // Encode RGBA buffer as PNG for efficient transmission

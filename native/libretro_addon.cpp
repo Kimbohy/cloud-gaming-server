@@ -166,12 +166,6 @@ public:
     void SetInput(unsigned button, bool pressed) {
         if (button < 16) {
             input_states[button] = pressed;
-            std::cout << "[LibretroCore::SetInput] Button " << button << " = " << (pressed ? "PRESSED" : "RELEASED") << std::endl;
-            std::cout << "[LibretroCore::SetInput] Current state array: ";
-            for (int i = 0; i < 16; i++) {
-                if (input_states[i]) std::cout << i << " ";
-            }
-            std::cout << std::endl;
         }
     }
 
@@ -197,21 +191,7 @@ public:
 
 private:
     static bool EnvironmentCallback(unsigned cmd, void* data) {
-        std::cout << "[EnvironmentCallback] CMD=" << cmd << std::endl;
-        
         if (cmd == RETRO_ENVIRONMENT_SET_PIXEL_FORMAT) {
-            unsigned* format = (unsigned*)data;
-            std::cout << "[EnvironmentCallback] Core requested pixel format: " << *format << std::endl;
-            // RETRO_PIXEL_FORMAT_0RGB1555 = 0
-            // RETRO_PIXEL_FORMAT_XRGB8888 = 1
-            // RETRO_PIXEL_FORMAT_RGB565 = 2
-            if (*format == 2) {
-                std::cout << "[EnvironmentCallback] Format is RGB565" << std::endl;
-            } else if (*format == 1) {
-                std::cout << "[EnvironmentCallback] Format is XRGB8888" << std::endl;
-            } else if (*format == 0) {
-                std::cout << "[EnvironmentCallback] Format is 0RGB1555" << std::endl;
-            }
             return true;
         }
         
@@ -276,12 +256,6 @@ private:
 
     static void InputPollCallback(void) {
         // Input polling handled externally
-        // This is called by the core every frame to poll inputs
-        static int poll_count = 0;
-        poll_count++;
-        if (poll_count % 60 == 0) {
-            std::cout << "[InputPollCallback] Called " << poll_count << " times" << std::endl;
-        }
     }
 
     static int16_t InputStateCallback(unsigned port, unsigned device, unsigned index, unsigned id) {
@@ -289,12 +263,7 @@ private:
         if (port != 0 || device != RETRO_DEVICE_JOYPAD) return 0;
         if (id >= 16) return 0;
         
-        bool pressed = instance->input_states[id];
-        // Log only when button is pressed to avoid spam
-        if (pressed) {
-            std::cout << "[InputStateCallback] Button " << id << " is pressed" << std::endl;
-        }
-        return pressed ? 1 : 0;
+        return instance->input_states[id] ? 1 : 0;
     }
 };
 
