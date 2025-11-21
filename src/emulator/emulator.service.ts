@@ -33,20 +33,24 @@ export class EmulatorService {
   async createSession(romPath: string): Promise<GameSession> {
     const sessionId = this.generateSessionId();
 
+    // Resolve ROM path relative to project root's rom directory
+    const projectRoot = path.resolve(__dirname, '../../..');
+    const fullRomPath = path.join(projectRoot, 'rom', romPath);
+
     // Verify ROM exists
-    if (!fs.existsSync(romPath)) {
-      throw new Error(`ROM not found: ${romPath}`);
+    if (!fs.existsSync(fullRomPath)) {
+      throw new Error(`ROM not found: ${fullRomPath}`);
     }
 
     const session: GameSession = {
       id: sessionId,
-      romPath,
+      romPath: fullRomPath,
       status: 'created',
       useNativeCore: true, // Use native libretro core by default
     };
 
     this.sessions.set(sessionId, session);
-    this.logger.log(`Created session ${sessionId} for ROM: ${romPath}`);
+    this.logger.log(`Created session ${sessionId} for ROM: ${fullRomPath}`);
 
     return session;
   }

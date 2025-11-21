@@ -19,7 +19,7 @@ interface InputMessage {
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   },
 })
 export class EmulatorGateway
