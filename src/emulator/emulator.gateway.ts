@@ -36,6 +36,11 @@ export class EmulatorGateway
     this.emulatorService.setGatewayCallback((sessionId, frame) => {
       this.broadcastFrame(sessionId, frame);
     });
+
+    // Set up callback for service to push audio
+    this.emulatorService.setAudioGatewayCallback((sessionId, audio) => {
+      this.broadcastAudio(sessionId, audio);
+    });
   }
 
   handleConnection(client: Socket) {
