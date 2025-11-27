@@ -6,7 +6,9 @@ async function bootstrap() {
   // Enable CORS for all origins (you can restrict this in production)
   app.enableCors({
     origin: '*',
+    credentials: true,
   });
-  await app.listen(process.env.PORT ?? 3000);
+  // Listen on all network interfaces (0.0.0.0) to allow IP access
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 bootstrap();
