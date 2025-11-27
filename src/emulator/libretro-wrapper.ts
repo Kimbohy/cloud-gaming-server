@@ -47,21 +47,22 @@ try {
   // Try to load the native addon
   const addonPath = path.join(
     __dirname,
-    '../../build/Release/libretro_addon.node',
+    '../../../build/Release/libretro_addon.node',
   );
   let addon;
   try {
     addon = require(addonPath);
   } catch {
     // Try alternative name
+
     const altPath = path.join(
       __dirname,
-      '../../build/Release/retro_addon.node',
+      '../../../build/Release/retro_addon.node',
     );
     addon = require(altPath);
   }
   LibretroCoreClass = addon.LibretroCore;
-} catch (error) {
+} catch (error: any) {
   console.warn('Native libretro addon not available:', error.message);
   console.warn('Falling back to mock implementation');
 

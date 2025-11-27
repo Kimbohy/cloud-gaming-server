@@ -2,10 +2,13 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { EmulatorModule } from './emulator/emulator.module';
+import { PrismaService } from './prisma/prisma.service';
+import { RomsService } from './roms/roms.service';
+import { RomsModule } from './roms/roms.module';
 
 @Module({
-  imports: [EmulatorModule],
+  imports: [EmulatorModule, RomsModule],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, PrismaService, RomsService],
 })
 export class AppModule {}
