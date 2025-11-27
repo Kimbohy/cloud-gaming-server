@@ -1,0 +1,22 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Roms {
+  id          String      @id @default(uuid())
+  name        String
+  console     ConsoleType @default(GBA)
+  filePath    String
+  imagePath   String?
+  description String?
+  uploadedAt  DateTime    @default(now())
+}
+
+enum ConsoleType {
+  GBA
+}

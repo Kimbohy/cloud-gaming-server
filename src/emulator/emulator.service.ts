@@ -35,7 +35,9 @@ export class EmulatorService {
 
     // Resolve ROM path relative to project root's rom directory
     const projectRoot = path.resolve(__dirname, '../../..');
+
     const fullRomPath = path.join(projectRoot, 'games', romPath);
+
 
     // Verify ROM exists
     if (!fs.existsSync(fullRomPath)) {
