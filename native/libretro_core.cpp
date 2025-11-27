@@ -3,25 +3,100 @@
 #include <cstring>
 #include <iostream>
 
-LibretroCore* LibretroCore::instance = nullptr;
+// Static member initialization
+std::mutex LibretroCore::global_mutex;
+LibretroCore* LibretroCore::active_instance = nullptr;
 
 LibretroCore::LibretroCore() 
     : core_handle(nullptr), 
       frame_width(0), 
       frame_height(0), 
-      frame_pitch(0) {
-    instance = this;
+      frame_pitch(0),
+      is_active(false),
+      game_loaded(false),
+      core_loaded(false),
+      retro_init(nullptr),
+      retro_deinit(nullptr),
+      retro_set_environment(nullptr),
+      retro_set_video_refresh(nullptr),
+      retro_set_audio_sample(nullptr),
+      retro_set_audio_sample_batch(nullptr),
+      retro_set_input_poll(nullptr),
+      retro_set_input_state(nullptr),
+      retro_load_game(nullptr),
+      retro_unload_game(nullptr),
+      retro_run(nullptr),
+      retro_get_system_av_info(nullptr) {
     std::memset(input_states, 0, sizeof(input_states));
 }
 
 LibretroCore::~LibretroCore() {
-    if (core_handle) {
-        if (retro_deinit) retro_deinit();
-        dlclose(core_handle);
+    // Ensure proper cleanup order
+    UnloadGame();
+    UnloadCore();
+}
+
+void LibretroCore::UnloadGame() {
+    std::lock_guard<std::mutex> lock(global_mutex);
+    
+    if (game_loaded && retro_unload_game) {
+        // Only unload if we are the active instance
+        if (active_instance == this) {
+            retro_unload_game();
+        }
+        game_loaded = false;
     }
+    
+    // Clear buffers
+    frame_buffer.clear();
+    audio_buffer.clear();
+}
+
+void LibretroCore::UnloadCore() {
+    std::lock_guard<std::mutex> lock(global_mutex);
+    
+    // Mark as inactive first
+    is_active.store(false);
+    
+    if (core_loaded && core_handle) {
+        // Only call deinit if we are the active instance
+        if (active_instance == this) {
+            if (retro_deinit) {
+                retro_deinit();
+            }
+            active_instance = nullptr;
+        }
+        
+        dlclose(core_handle);
+        core_handle = nullptr;
+        core_loaded = false;
+    }
+    
+    // Reset function pointers
+    retro_init = nullptr;
+    retro_deinit = nullptr;
+    retro_set_environment = nullptr;
+    retro_set_video_refresh = nullptr;
+    retro_set_audio_sample = nullptr;
+    retro_set_audio_sample_batch = nullptr;
+    retro_set_input_poll = nullptr;
+    retro_set_input_state = nullptr;
+    retro_load_game = nullptr;
+    retro_unload_game = nullptr;
+    retro_run = nullptr;
+    retro_get_system_av_info = nullptr;
 }
 
 bool LibretroCore::LoadCore(const char* core_path) {
+    std::lock_guard<std::mutex> lock(global_mutex);
+    
+    // If there's already an active instance, we need to clean it up first
+    if (active_instance && active_instance != this) {
+        std::cerr << "Warning: Another core instance is active. Cleaning up..." << std::endl;
+        // The old instance should be cleaned up by its owner
+        // We'll just take over as the active instance
+    }
+    
     core_handle = dlopen(core_path, RTLD_LAZY);
     if (!core_handle) {
         std::cerr << "Failed to load core: " << dlerror() << std::endl;
@@ -42,6 +117,10 @@ bool LibretroCore::LoadCore(const char* core_path) {
     retro_run = (retro_run_t)dlsym(core_handle, "retro_run");
     retro_get_system_av_info = (retro_get_system_av_info_t)dlsym(core_handle, "retro_get_system_av_info");
 
+    // Set this as the active instance BEFORE setting callbacks
+    active_instance = this;
+    is_active.store(true);
+
     // Set up callbacks
     retro_set_environment(EnvironmentCallback);
     retro_set_video_refresh(VideoRefreshCallback);
@@ -51,10 +130,24 @@ bool LibretroCore::LoadCore(const char* core_path) {
     retro_set_input_state(InputStateCallback);
 
     retro_init();
+    core_loaded = true;
     return true;
 }
 
 bool LibretroCore::LoadGame(const char* rom_path) {
+    std::lock_guard<std::mutex> lock(global_mutex);
+    
+    if (!core_loaded || !is_active.load()) {
+        std::cerr << "Core not loaded or not active" << std::endl;
+        return false;
+    }
+    
+    // Ensure we're the active instance
+    if (active_instance != this) {
+        std::cerr << "Not the active instance" << std::endl;
+        return false;
+    }
+
     retro_game_info game_info;
     game_info.path = rom_path;
     game_info.data = nullptr;
@@ -65,6 +158,8 @@ bool LibretroCore::LoadGame(const char* rom_path) {
         std::cerr << "Failed to load game" << std::endl;
         return false;
     }
+
+    game_loaded = true;
 
     // Get system AV info
     retro_system_av_info av_info;
@@ -80,9 +175,17 @@ bool LibretroCore::LoadGame(const char* rom_path) {
 }
 
 void LibretroCore::RunFrame() {
-    if (retro_run) {
-        retro_run();
+    // Check if we're still active without holding the lock during run
+    if (!is_active.load() || !retro_run) {
+        return;
     }
+    
+    // Verify we're the active instance
+    if (active_instance != this) {
+        return;
+    }
+    
+    retro_run();
 }
 
 void LibretroCore::SetInput(unsigned button, bool pressed) {
@@ -131,7 +234,8 @@ bool LibretroCore::EnvironmentCallback(unsigned cmd, void* data) {
 }
 
 void LibretroCore::VideoRefreshCallback(const void* data, unsigned width, unsigned height, size_t pitch) {
-    if (!instance || !data) return;
+    LibretroCore* instance = active_instance;
+    if (!instance || !instance->is_active.load() || !data) return;
 
     instance->frame_width = width;
     instance->frame_height = height;
@@ -169,13 +273,15 @@ void LibretroCore::VideoRefreshCallback(const void* data, unsigned width, unsign
 }
 
 void LibretroCore::AudioSampleCallback(int16_t left, int16_t right) {
-    if (!instance) return;
+    LibretroCore* instance = active_instance;
+    if (!instance || !instance->is_active.load()) return;
     instance->audio_buffer.push_back(left);
     instance->audio_buffer.push_back(right);
 }
 
 size_t LibretroCore::AudioSampleBatchCallback(const int16_t* data, size_t frames) {
-    if (!instance) return 0;
+    LibretroCore* instance = active_instance;
+    if (!instance || !instance->is_active.load()) return 0;
     instance->audio_buffer.insert(instance->audio_buffer.end(), data, data + frames * 2);
     return frames;
 }
@@ -185,7 +291,8 @@ void LibretroCore::InputPollCallback(void) {
 }
 
 int16_t LibretroCore::InputStateCallback(unsigned port, unsigned device, unsigned index, unsigned id) {
-    if (!instance) return 0;
+    LibretroCore* instance = active_instance;
+    if (!instance || !instance->is_active.load()) return 0;
     if (port != 0 || device != RETRO_DEVICE_JOYPAD) return 0;
     if (id >= 16) return 0;
     
