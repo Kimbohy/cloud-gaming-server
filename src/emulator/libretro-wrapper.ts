@@ -50,7 +50,7 @@ try {
   // Try to load the native addon
   const addonPath = path.join(
     __dirname,
-    '../../../build/Release/libretro_addon.node',
+    '../../build/Release/libretro_addon.node',
   );
   let addon;
   try {
@@ -60,7 +60,7 @@ try {
 
     const altPath = path.join(
       __dirname,
-      '../../../build/Release/retro_addon.node',
+      '../../build/Release/retro_addon.node',
     );
     addon = require(altPath);
   }
