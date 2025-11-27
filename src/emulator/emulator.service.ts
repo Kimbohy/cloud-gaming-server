@@ -111,9 +111,29 @@ export class EmulatorService {
       throw new Error(`Session ${sessionId} not found`);
     }
 
+    // Mark as stopping first to prevent race conditions
+    session.status = 'stopped';
+
+    // Stop the frame interval first
     if (session.frameInterval) {
       clearInterval(session.frameInterval);
       session.frameInterval = undefined;
+    }
+
+    // Give a small delay for any in-flight frame operations to complete
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Clean up the native core properly
+    if (session.core) {
+      try {
+        session.core.cleanup();
+      } catch (error) {
+        this.logger.error(
+          `Error cleaning up core for session ${sessionId}:`,
+          error,
+        );
+      }
+      session.core = undefined;
     }
 
     if (session.process) {
@@ -121,7 +141,6 @@ export class EmulatorService {
       session.process = undefined;
     }
 
-    session.status = 'stopped';
     this.sessions.delete(sessionId);
 
     this.logger.log(`Stopped session ${sessionId}`);
@@ -134,21 +153,30 @@ export class EmulatorService {
     // Run emulator at 60fps and capture frames + audio
     let frameCount = 0;
     session.frameInterval = setInterval(async () => {
-      if (session.status === 'running' && session.core) {
-        try {
-          // Run one frame of emulation
-          session.core.runFrame();
+      // Check all conditions before running frame
+      if (
+        session.status !== 'running' ||
+        !session.core ||
+        !session.core.isActive()
+      ) {
+        return;
+      }
 
-          // Get the frame that was just rendered
-          const frame = await this.getFrameStream(sessionId);
+      try {
+        // Run one frame of emulation
+        session.core.runFrame();
 
-          // Emit frame to gateway
-          if (frame && this.gatewayCallback) {
-            this.gatewayCallback(sessionId, frame);
-            frameCount++;
-          }
+        // Get the frame that was just rendered
+        const frame = await this.getFrameStream(sessionId);
 
-          // Get and emit audio buffer
+        // Emit frame to gateway
+        if (frame && this.gatewayCallback) {
+          this.gatewayCallback(sessionId, frame);
+          frameCount++;
+        }
+
+        // Get and emit audio buffer
+        if (session.core && session.status === 'running') {
           const audioBuffer = session.core.getAudioBuffer();
           if (audioBuffer && audioBuffer.length > 0) {
             const audioData = {
@@ -167,12 +195,12 @@ export class EmulatorService {
             // Clear the audio buffer after reading
             session.core.clearAudioBuffer();
           }
-        } catch (error) {
-          this.logger.error(
-            `Error running frame for session ${sessionId}:`,
-            error,
-          );
         }
+      } catch (error) {
+        this.logger.error(
+          `Error running frame for session ${sessionId}:`,
+          error,
+        );
       }
     }, 1000 / 60); // 60 FPS
   }

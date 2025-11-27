@@ -8,6 +8,7 @@ class LibretroAddon : public Napi::ObjectWrap<LibretroAddon> {
 public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
     LibretroAddon(const Napi::CallbackInfo& info);
+    ~LibretroAddon();
 
 private:
     static Napi::FunctionReference constructor;
@@ -22,6 +23,9 @@ private:
     Napi::Value GetFrameWidth(const Napi::CallbackInfo& info);
     Napi::Value GetFrameHeight(const Napi::CallbackInfo& info);
     void ClearAudioBuffer(const Napi::CallbackInfo& info);
+    void UnloadGame(const Napi::CallbackInfo& info);
+    void UnloadCore(const Napi::CallbackInfo& info);
+    Napi::Value IsActive(const Napi::CallbackInfo& info);
 };
 
 #endif // LIBRETRO_ADDON_H
