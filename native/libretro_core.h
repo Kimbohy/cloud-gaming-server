@@ -4,6 +4,8 @@
 #include "libretro_types.h"
 #include <vector>
 #include <cstdint>
+#include <mutex>
+#include <atomic>
 
 class LibretroCore {
 private:
@@ -27,8 +29,15 @@ private:
     unsigned frame_height;
     size_t frame_pitch;
     bool input_states[16]; // Support for up to 16 buttons
+    
+    // Track if this instance is currently active
+    std::atomic<bool> is_active;
+    bool game_loaded;
+    bool core_loaded;
 
-    static LibretroCore* instance;
+    // Global mutex for singleton access (libretro cores are not multi-instance safe)
+    static std::mutex global_mutex;
+    static LibretroCore* active_instance;
 
     // Static callback functions
     static bool EnvironmentCallback(unsigned cmd, void* data);
@@ -44,6 +53,8 @@ public:
 
     bool LoadCore(const char* core_path);
     bool LoadGame(const char* rom_path);
+    void UnloadGame();
+    void UnloadCore();
     void RunFrame();
     void SetInput(unsigned button, bool pressed);
     
@@ -54,6 +65,8 @@ public:
     
     unsigned GetFrameWidth() const;
     unsigned GetFrameHeight() const;
+    
+    bool IsActive() const { return is_active.load(); }
 };
 
 #endif // LIBRETRO_CORE_H

@@ -39,6 +39,9 @@ interface NativeLibretroCore {
   getFrameWidth(): number;
   getFrameHeight(): number;
   clearAudioBuffer(): void;
+  unloadGame(): void;
+  unloadCore(): void;
+  isActive(): boolean;
 }
 
 let LibretroCoreClass: new () => NativeLibretroCore;
@@ -89,6 +92,11 @@ try {
       return 160;
     }
     clearAudioBuffer(): void {}
+    unloadGame(): void {}
+    unloadCore(): void {}
+    isActive(): boolean {
+      return true;
+    }
   };
 }
 
@@ -150,5 +158,24 @@ export class LibretroCore {
 
   clearAudioBuffer(): void {
     this.core.clearAudioBuffer();
+  }
+
+  unloadGame(): void {
+    this.core.unloadGame();
+  }
+
+  unloadCore(): void {
+    this.core.unloadCore();
+    this.isLoaded = false;
+  }
+
+  isActive(): boolean {
+    return this.core.isActive();
+  }
+
+  // Clean up everything - call this before destroying the instance
+  cleanup(): void {
+    this.unloadGame();
+    this.unloadCore();
   }
 }

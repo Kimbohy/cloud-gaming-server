@@ -1,7 +1,5 @@
 #include "libretro_addon.h"
 
-#include "libretro_addon.h"
-
 Napi::FunctionReference LibretroAddon::constructor;
 
 Napi::Object LibretroAddon::Init(Napi::Env env, Napi::Object exports) {
@@ -15,6 +13,9 @@ Napi::Object LibretroAddon::Init(Napi::Env env, Napi::Object exports) {
         InstanceMethod("getFrameWidth", &LibretroAddon::GetFrameWidth),
         InstanceMethod("getFrameHeight", &LibretroAddon::GetFrameHeight),
         InstanceMethod("clearAudioBuffer", &LibretroAddon::ClearAudioBuffer),
+        InstanceMethod("unloadGame", &LibretroAddon::UnloadGame),
+        InstanceMethod("unloadCore", &LibretroAddon::UnloadCore),
+        InstanceMethod("isActive", &LibretroAddon::IsActive),
     });
 
     constructor = Napi::Persistent(func);
@@ -25,6 +26,12 @@ Napi::Object LibretroAddon::Init(Napi::Env env, Napi::Object exports) {
 }
 
 LibretroAddon::LibretroAddon(const Napi::CallbackInfo& info) : Napi::ObjectWrap<LibretroAddon>(info) {
+}
+
+LibretroAddon::~LibretroAddon() {
+    // Ensure cleanup when the JS object is garbage collected
+    core.UnloadGame();
+    core.UnloadCore();
 }
 
 Napi::Value LibretroAddon::LoadCore(const Napi::CallbackInfo& info) {
@@ -111,6 +118,19 @@ Napi::Value LibretroAddon::GetFrameHeight(const Napi::CallbackInfo& info) {
 
 void LibretroAddon::ClearAudioBuffer(const Napi::CallbackInfo& info) {
     core.ClearAudioBuffer();
+}
+
+void LibretroAddon::UnloadGame(const Napi::CallbackInfo& info) {
+    core.UnloadGame();
+}
+
+void LibretroAddon::UnloadCore(const Napi::CallbackInfo& info) {
+    core.UnloadCore();
+}
+
+Napi::Value LibretroAddon::IsActive(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    return Napi::Boolean::New(env, core.IsActive());
 }
 
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
