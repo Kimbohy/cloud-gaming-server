@@ -10,8 +10,10 @@ async function bootstrap() {
     origin: '*',
     credentials: true,
   });
-  // Serve static files from uploads directory
-  app.useStaticAssets(join(__dirname, '..', 'uploads'));
+  // Serve static files from uploads directory with /uploads prefix
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/',
+  });
   // Listen on all network interfaces (0.0.0.0) to allow IP access
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }

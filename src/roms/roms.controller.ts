@@ -7,9 +7,9 @@ import {
   Param,
   Delete,
   UseInterceptors,
-  UploadedFile,
+  UploadedFiles,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { RomsService } from './roms.service';
@@ -27,25 +27,38 @@ export class RomsController {
 
   @Post('upload')
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/roms',
-        filename: (req, file, callback) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          callback(
-            null,
-            file.fieldname + '-' + uniqueSuffix + extname(file.originalname),
-          );
-        },
-      }),
-    }),
+    FileFieldsInterceptor(
+      [
+        { name: 'rom', maxCount: 1 },
+        { name: 'image', maxCount: 1 },
+      ],
+      {
+        storage: diskStorage({
+          destination: (req, file, callback) => {
+            if (file.fieldname === 'rom') {
+              callback(null, './uploads/roms');
+            } else if (file.fieldname === 'image') {
+              callback(null, './uploads/images');
+            }
+          },
+          filename: (req, file, callback) => {
+            const uniqueSuffix =
+              Date.now() + '-' + Math.round(Math.random() * 1e9);
+            callback(
+              null,
+              file.fieldname + '-' + uniqueSuffix + extname(file.originalname),
+            );
+          },
+        }),
+      },
+    ),
   )
   async uploadRom(
-    @UploadedFile() file: any,
+    @UploadedFiles()
+    files: { rom?: Express.Multer.File[]; image?: Express.Multer.File[] },
     @Body() createRomDto: Partial<CreateRomDto>,
   ) {
-    return this.romsService.uploadRom(file, createRomDto);
+    return this.romsService.uploadRom(files, createRomDto);
   }
 
   @Get()
