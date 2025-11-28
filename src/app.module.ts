@@ -3,12 +3,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { EmulatorModule } from './emulator/emulator.module';
 import { PrismaService } from './prisma/prisma.service';
-import { RomsService } from './roms/roms.service';
 import { RomsModule } from './roms/roms.module';
 
 @Module({
   imports: [EmulatorModule, RomsModule],
   controllers: [AppController],
-  providers: [AppService, PrismaService, RomsService],
+  providers: [AppService, PrismaService],
 })
 export class AppModule {}
