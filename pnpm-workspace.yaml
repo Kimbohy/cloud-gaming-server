@@ -1,6 +1,7 @@
 ignoredBuiltDependencies:
   - '@prisma/client'
   - '@prisma/engines'
+  - bcrypt
   - ffi-napi
   - prisma
   - ref-napi
