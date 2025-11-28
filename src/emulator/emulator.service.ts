@@ -38,7 +38,6 @@ export class EmulatorService {
 
     const fullRomPath = path.join(projectRoot, 'games', romPath);
 
-
     // Verify ROM exists
     if (!fs.existsSync(fullRomPath)) {
       throw new Error(`ROM not found: ${fullRomPath}`);
