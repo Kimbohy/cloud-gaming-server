@@ -48,15 +48,28 @@ export class RomsService {
     }
   }
 
-  async uploadRom(file: any, createRomDto: Partial<CreateRomDto>) {
-    const filePath = `/uploads/roms/${file.filename}`;
+  async uploadRom(
+    files: { rom?: Express.Multer.File[]; image?: Express.Multer.File[] },
+    createRomDto: Partial<CreateRomDto>,
+  ) {
+    const romFile = files.rom?.[0];
+    const imageFile = files.image?.[0];
+
+    if (!romFile) {
+      throw new Error('ROM file is required');
+    }
+
+    const filePath = `/uploads/roms/${romFile.filename}`;
+    const imagePath = imageFile
+      ? `/uploads/images/${imageFile.filename}`
+      : undefined;
 
     const rom = await this.prisma.roms.create({
       data: {
-        name: createRomDto.name || file.originalname,
+        name: createRomDto.name || romFile.originalname,
         console: createRomDto.console || 'GBA',
         filePath,
-        imagePath: createRomDto.imagePath,
+        imagePath,
         description: createRomDto.description,
       },
     });
