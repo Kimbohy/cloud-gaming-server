@@ -35,6 +35,9 @@ importers:
       '@prisma/client':
         specifier: ^6.19.0
         version: 6.19.0(prisma@6.19.0(typescript@5.9.3))(typescript@5.9.3)
+      '@roamhq/wrtc':
+        specifier: ^0.9.1
+        version: 0.9.1
       '@types/multer':
         specifier: ^2.0.0
         version: 2.0.0
@@ -1028,6 +1031,34 @@ packages:
   '@prisma/get-platform@6.19.0':
     resolution: {integrity: sha512-ym85WDO2yDhC3fIXHWYpG3kVMBA49cL1XD2GCsCF8xbwoy2OkDQY44gEbAt2X46IQ4Apq9H6g0Ex1iFfPqEkHA==}
 
+  '@roamhq/wrtc-darwin-arm64@0.9.1':
+    resolution: {integrity: sha512-+g0+nLeZrsAeuzD663y9wbkRns8s/u5nMt/swiUa0G0mQaIRc7zSe77gRGd3E4lMgQ2VyUMV607SCM1OjVdmyg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@roamhq/wrtc-darwin-x64@0.9.1':
+    resolution: {integrity: sha512-W24zSe9s6c9Tu1owP8RHg7xqW/JRMl6TRAf8pLWGgXuIeI79jVx1A9MvKTlwLM4AAZmWY0rMHYOzJg6aTb+qkQ==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@roamhq/wrtc-linux-arm64@0.9.1':
+    resolution: {integrity: sha512-PeXkYGNcojjXvpHbI+R/YIUUkTWVrFaS5iQD55iGYbGBcBzU23wzpK0x/TvCQ0Ok4gimK985tgHKimbsVrs2Yw==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@roamhq/wrtc-linux-x64@0.9.1':
+    resolution: {integrity: sha512-LuhzPdMM3i8vs/ifdj1F1pjpX2OhJSCWdh03UQXjRHoX+Fi1oJXiZRwKoVKu1BbsKCYfJ8m9jZB1ZU4Lhi8yHw==}
+    cpu: [x64]
+    os: [linux]
+
+  '@roamhq/wrtc-win32-x64@0.9.1':
+    resolution: {integrity: sha512-xyxqCpHxp71MY/3LaFTj3WDvOnu8GaDht1M0LAIGamwkQUg45X/zkzbfeIS7g8f/ZvItAjFa6cUkSUuhK3/rGg==}
+    cpu: [x64]
+    os: [win32]
+
+  '@roamhq/wrtc@0.9.1':
+    resolution: {integrity: sha512-WQH9DaN3kGv9+wxeRtxkSykmVQWl44VTX9XsMLmR5jtcsGxin+72U9uGlDjME0gwNNBHDKY3CgUGYI8ZYg8Jdw==}
+
   '@sinclair/typebox@0.34.41':
     resolution: {integrity: sha512-6gS8pZzSXdyRHTIqoqSVknxolr1kzfy4/CeDnrzsVz8TTIWUbOBr6gnzOmTYJ3eXQNh4IYHIGi5aIL7sOZ2G/g==}
 
@@ -1883,6 +1914,11 @@ packages:
   diff@4.0.2:
     resolution: {integrity: sha512-58lmxKSA4BNyLz+HHMUzlOEpg09FV+ev6ZMe3vJihgdxzgcwZ8VoEEPmALCZG9LmqfVoNMMKpttIYTVG6uDY7A==}
     engines: {node: '>=0.3.1'}
+
+  domexception@4.0.0:
+    resolution: {integrity: sha512-A2is4PLG+eeSfoTMA95/s4pvAoSo2mKtiM5jlHkAVewmiO8ISFTFKZjH7UAM1Atli/OT/7JHOrJRJiMKUZKYBw==}
+    engines: {node: '>=12'}
+    deprecated: Use your platform's native DOMException instead
 
   dotenv@16.6.1:
     resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
@@ -3699,6 +3735,10 @@ packages:
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
 
+  webidl-conversions@7.0.0:
+    resolution: {integrity: sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g==}
+    engines: {node: '>=12'}
+
   webpack-node-externals@3.0.0:
     resolution: {integrity: sha512-LnL6Z3GGDPht/AigwRh2dvL9PQPFQ8skEpVrWZXLWBYmqcaojHNN0onvHzie6rq7EWKrrBfPYqNEzTJgiwEQDQ==}
     engines: {node: '>=6'}
@@ -4806,6 +4846,30 @@ snapshots:
     dependencies:
       '@prisma/debug': 6.19.0
 
+  '@roamhq/wrtc-darwin-arm64@0.9.1':
+    optional: true
+
+  '@roamhq/wrtc-darwin-x64@0.9.1':
+    optional: true
+
+  '@roamhq/wrtc-linux-arm64@0.9.1':
+    optional: true
+
+  '@roamhq/wrtc-linux-x64@0.9.1':
+    optional: true
+
+  '@roamhq/wrtc-win32-x64@0.9.1':
+    optional: true
+
+  '@roamhq/wrtc@0.9.1':
+    optionalDependencies:
+      '@roamhq/wrtc-darwin-arm64': 0.9.1
+      '@roamhq/wrtc-darwin-x64': 0.9.1
+      '@roamhq/wrtc-linux-arm64': 0.9.1
+      '@roamhq/wrtc-linux-x64': 0.9.1
+      '@roamhq/wrtc-win32-x64': 0.9.1
+      domexception: 4.0.0
+
   '@sinclair/typebox@0.34.41': {}
 
   '@sinonjs/commons@3.0.1':
@@ -5690,6 +5754,11 @@ snapshots:
       wrappy: 1.0.2
 
   diff@4.0.2: {}
+
+  domexception@4.0.0:
+    dependencies:
+      webidl-conversions: 7.0.0
+    optional: true
 
   dotenv@16.6.1: {}
 
@@ -7793,6 +7862,9 @@ snapshots:
   wcwidth@1.0.1:
     dependencies:
       defaults: 1.0.4
+
+  webidl-conversions@7.0.0:
+    optional: true
 
   webpack-node-externals@3.0.0: {}
 

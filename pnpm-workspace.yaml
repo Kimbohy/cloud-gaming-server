@@ -5,3 +5,4 @@ ignoredBuiltDependencies:
   - ffi-napi
   - prisma
   - ref-napi
+  - wrtc

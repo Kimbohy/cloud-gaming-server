@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import sharp from 'sharp';
 import { LibretroCore } from './libretro-wrapper';
+import { WebRTCService } from './webrtc.service';
 
 export interface GameSession {
   id: string;
@@ -15,6 +16,7 @@ export interface GameSession {
   audioSocket?: string;
   frameInterval?: NodeJS.Timeout;
   useNativeCore: boolean;
+  streamMode: 'websocket' | 'webrtc' | 'both'; // Streaming mode
 }
 
 @Injectable()
@@ -25,12 +27,20 @@ export class EmulatorService {
     '/usr/lib/x86_64-linux-gnu/libretro/mgba_libretro.so';
   private gatewayCallback: ((sessionId: string, frame: any) => void) | null =
     null;
+  private webrtcService: WebRTCService | null = null;
+
+  setWebRTCService(webrtcService: WebRTCService) {
+    this.webrtcService = webrtcService;
+  }
 
   setGatewayCallback(callback: (sessionId: string, frame: any) => void) {
     this.gatewayCallback = callback;
   }
 
-  async createSession(romPath: string): Promise<GameSession> {
+  async createSession(
+    romPath: string,
+    streamMode: 'websocket' | 'webrtc' | 'both' = 'websocket',
+  ): Promise<GameSession> {
     const sessionId = this.generateSessionId();
 
     // Resolve ROM path relative to project root's rom directory
@@ -48,6 +58,7 @@ export class EmulatorService {
       romPath: fullRomPath,
       status: 'created',
       useNativeCore: true, // Use native libretro core by default
+      streamMode,
     };
 
     this.sessions.set(sessionId, session);
@@ -142,6 +153,11 @@ export class EmulatorService {
       session.process = undefined;
     }
 
+    // Close WebRTC sessions for this game
+    if (this.webrtcService) {
+      await this.webrtcService.closeAllSessionsForGame(sessionId);
+    }
+
     this.sessions.delete(sessionId);
 
     this.logger.log(`Stopped session ${sessionId}`);
@@ -167,30 +183,99 @@ export class EmulatorService {
         // Run one frame of emulation
         session.core.runFrame();
 
-        // Get the frame that was just rendered
-        const frame = await this.getFrameStream(sessionId);
+        const width = session.core.getFrameWidth();
+        const height = session.core.getFrameHeight();
+        const rawFrameBuffer = session.core.getFrameBuffer();
 
-        // Emit frame to gateway
-        if (frame && this.gatewayCallback) {
-          this.gatewayCallback(sessionId, frame);
-          frameCount++;
+        // Stream via WebRTC if enabled
+        if (
+          (session.streamMode === 'webrtc' || session.streamMode === 'both') &&
+          this.webrtcService &&
+          rawFrameBuffer
+        ) {
+          // Send raw RGBA frame to all WebRTC sessions for this game
+          const webrtcSessions =
+            this.webrtcService.getAllSessionsForGame(sessionId);
+
+          // Log occasionally to debug
+          if (frameCount % 300 === 0) {
+            this.logger.log(
+              `[WebRTC] Game ${sessionId}: Found ${webrtcSessions.length} WebRTC session(s), streamMode=${session.streamMode}`,
+            );
+            for (const ws of webrtcSessions) {
+              this.logger.log(
+                `[WebRTC]   - Session ${ws.id}: isConnected=${ws.isConnected}`,
+              );
+            }
+          }
+
+          for (const webrtcSession of webrtcSessions) {
+            if (webrtcSession.isConnected) {
+              this.webrtcService.sendVideoFrame(
+                webrtcSession.id,
+                rawFrameBuffer,
+                width,
+                height,
+              );
+            }
+          }
+        }
+
+        // Stream via WebSocket if enabled
+        if (
+          session.streamMode === 'websocket' ||
+          session.streamMode === 'both'
+        ) {
+          // Get the frame that was just rendered (PNG encoded for WebSocket)
+          const frame = await this.getFrameStream(sessionId);
+
+          // Emit frame to gateway
+          if (frame && this.gatewayCallback) {
+            this.gatewayCallback(sessionId, frame);
+            frameCount++;
+          }
         }
 
         // Get and emit audio buffer
         if (session.core && session.status === 'running') {
           const audioBuffer = session.core.getAudioBuffer();
           if (audioBuffer && audioBuffer.length > 0) {
-            const audioData = {
-              data: audioBuffer.toString('base64'),
-              sampleRate: 32040, // mGBA default sample rate
-              channels: 2, // Stereo
-              format: 'pcm_s16le', // Signed 16-bit little-endian
-              timestamp: Date.now(),
-            };
+            // Stream audio via WebRTC if enabled
+            if (
+              (session.streamMode === 'webrtc' ||
+                session.streamMode === 'both') &&
+              this.webrtcService
+            ) {
+              const webrtcSessions =
+                this.webrtcService.getAllSessionsForGame(sessionId);
+              for (const webrtcSession of webrtcSessions) {
+                if (webrtcSession.isConnected) {
+                  this.webrtcService.sendAudioSamples(
+                    webrtcSession.id,
+                    audioBuffer,
+                    32040, // mGBA sample rate
+                    2, // Stereo
+                  );
+                }
+              }
+            }
 
-            if (this.gatewayCallback) {
-              // Use a separate callback for audio or extend the gateway
-              this.emitAudio(sessionId, audioData);
+            // Stream audio via WebSocket if enabled
+            if (
+              session.streamMode === 'websocket' ||
+              session.streamMode === 'both'
+            ) {
+              const audioData = {
+                data: audioBuffer.toString('base64'),
+                sampleRate: 32040, // mGBA default sample rate
+                channels: 2, // Stereo
+                format: 'pcm_s16le', // Signed 16-bit little-endian
+                timestamp: Date.now(),
+              };
+
+              if (this.audioGatewayCallback) {
+                this.emitAudio(sessionId, audioData);
+              }
             }
 
             // Clear the audio buffer after reading
@@ -334,6 +419,34 @@ export class EmulatorService {
     } else {
       this.logger.debug(`Mock input for session ${sessionId}:`, input);
     }
+  }
+
+  /**
+   * Update the stream mode for a session
+   */
+  setStreamMode(
+    sessionId: string,
+    mode: 'websocket' | 'webrtc' | 'both',
+  ): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      this.logger.warn(
+        `Cannot set stream mode - session ${sessionId} not found`,
+      );
+      return false;
+    }
+
+    session.streamMode = mode;
+    this.logger.log(`Session ${sessionId} stream mode set to ${mode}`);
+    return true;
+  }
+
+  /**
+   * Get the current stream mode for a session
+   */
+  getStreamMode(sessionId: string): 'websocket' | 'webrtc' | 'both' | null {
+    const session = this.sessions.get(sessionId);
+    return session?.streamMode ?? null;
   }
 
   private generateSessionId(): string {

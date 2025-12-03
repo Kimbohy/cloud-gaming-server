@@ -30,6 +30,7 @@
     "@nestjs/platform-socket.io": "^11.1.9",
     "@nestjs/websockets": "^11.1.9",
     "@prisma/client": "^6.19.0",
+    "@roamhq/wrtc": "^0.9.1",
     "@types/multer": "^2.0.0",
     "bcrypt": "^6.0.0",
     "bindings": "^1.5.0",

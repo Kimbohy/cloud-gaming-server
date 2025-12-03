@@ -7,6 +7,8 @@ import {
   AudioGateway,
   InputGateway,
 } from './emulator.gateway';
+import { WebRTCService } from './webrtc.service';
+import { WebRTCGateway } from './webrtc.gateway';
 
 @Module({
   providers: [
@@ -15,8 +17,10 @@ import {
     VideoGateway,
     AudioGateway,
     InputGateway,
+    WebRTCService,
+    WebRTCGateway,
   ],
   controllers: [EmulatorController],
-  exports: [EmulatorService],
+  exports: [EmulatorService, WebRTCService],
 })
 export class EmulatorModule {}
